@@ -1,0 +1,61 @@
+config:
+  tracing:
+    otlpEndpoint: http://localhost:4317
+    randomSampling: true
+    fields:
+      add:
+        username: 'jwt.preferred_username'
+        role: 'jwt.realm_access.roles'
+        tool_name: 'mcp.resource.name'
+        mcp_method: 'mcp.method'
+binds:
+- port: 3000
+  listeners:
+  - protocol: HTTP
+    name: mcp_secure_listener
+    hostname: "*"
+    routes:
+    - matches:
+      - path:
+          pathPrefix: /
+      backends:
+      - mcp:
+          targets:
+          - name: fastmcp_backend
+            mcp:
+              host: 127.0.0.1
+              port: 9000
+              path: /mcp
+          statefulMode: stateless
+      name: mcp_auth_router
+      policies:
+        cors:
+          allowOrigins:
+          - '*'
+          allowHeaders:
+          - mcp-protocol-version
+          - content-type
+          - cache-control
+          - authorization
+          allowMethods:
+          - '*'
+          allowCredentials: false
+        mcpAuthentication:
+          issuer: http://localhost:8080/realms/mcp_demo
+          jwksUrl: http://localhost:8080/realms/mcp_demo/protocol/openid-connect/certs
+          audience: account
+          provider:
+            keycloak: {}
+          resourceMetadata:
+            resource: http://localhost:3000/mcp
+            scopesSupported:
+            - openid
+            - profile
+            bearerMethodsSupported:
+            - header
+            - query
+        mcpAuthorization:
+          rules:
+          - mcp.tool.name in ["list_products", "get_product_detail", "add_to_cart", "get_cart", "remove_from_cart", "checkout", "get_my_orders"] && "buyer" in jwt.realm_access.roles
+          - mcp.tool.name in ["list_products", "get_product_detail", "add_product", "get_my_products", "update_product_stock", "delete_product", "get_store_profit_loss"] && "seller" in jwt.realm_access.roles
+          - mcp.tool.name in ["list_products", "get_product_detail", "add_product", "get_my_products", "update_product_stock", "delete_product", "get_store_profit_loss", "add_to_cart", "get_cart", "remove_from_cart", "checkout", "get_my_orders", "get_store_profit_loss"] && "admin" in jwt.realm_access.roles

@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    container_name: mcp_keycloak
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+      # Development mode:
+      - KC_HEALTH_ENABLED=true
+      - KC_METRICS_ENABLED=true
+    command: start-dev
+    ports:
+      - "8080:8080"
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+    networks:
+      - mcp_network
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: mcp_jaeger
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686"  # Jaeger UI to view in Admin Dashboard
+      - "4317:4317"    # OTLP gRPC port for AgentGateway traces
+      - "4318:4318"    # OTLP HTTP port
+    networks:
+      - mcp_network
+
+volumes:
+  keycloak_data:
+
+networks:
+  mcp_network:
+    driver: bridge
