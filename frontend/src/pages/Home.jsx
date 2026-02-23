@@ -26,7 +26,7 @@ const Home = () => {
                         <h3 className="font-bold text-xl text-gray-900">Premium Product #{i}</h3>
                         <p className="text-gray-500 text-sm mt-1">Special production technological equipment.</p>
                         <div className="mt-4 flex justify-between items-center">
-                            <span className="text-blue-600 font-black text-xl">45,000 TL</span>
+                            <span className="text-blue-600 font-black text-xl">$45,000</span>
                             <button className="bg-gray-100 p-2 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-colors">
                                 Details
                             </button>

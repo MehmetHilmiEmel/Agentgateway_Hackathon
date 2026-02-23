@@ -188,7 +188,7 @@ const BuyerDashboard = () => {
                                             <div className="flex items-end justify-between mt-4">
                                                 <div>
                                                     <div className="text-2xl font-black text-blue-600">
-                                                        ₺{p.price.toLocaleString('tr-TR')}
+                                                        ${p.price.toLocaleString('en-US')}
                                                     </div>
                                                     <div className={`text-xs mt-0.5 font-medium ${p.stock < 5 ? 'text-red-500' : 'text-gray-400'}`}>
                                                         {p.stock > 0 ? `${p.stock} units in stock` : 'Out of stock'}
@@ -231,13 +231,13 @@ const BuyerDashboard = () => {
                                                 <div>
                                                     <div className="font-semibold text-gray-900">{item.name}</div>
                                                     <div className="text-sm text-gray-400 mt-0.5">
-                                                        {item.quantity} units × ₺{item.price?.toLocaleString('tr-TR')}
+                                                        {item.quantity} units × ${item.price?.toLocaleString('en-US')}
                                                     </div>
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-4">
                                                 <div className="font-black text-gray-900 text-lg">
-                                                    ₺{item.subtotal?.toLocaleString('tr-TR')}
+                                                    ${item.subtotal?.toLocaleString('en-US')}
                                                 </div>
                                                 <button onClick={() => removeFromCart(item.product_code)}
                                                     className="w-8 h-8 bg-red-50 text-red-400 rounded-full flex items-center justify-center hover:bg-red-100 transition-colors text-xl font-light">
@@ -251,7 +251,7 @@ const BuyerDashboard = () => {
                                     <div className="flex justify-between items-center mb-5">
                                         <span className="text-gray-600 font-medium">Total Amount</span>
                                         <span className="text-3xl font-black text-blue-600">
-                                            ₺{cart.total?.toLocaleString('tr-TR')}
+                                            ${cart.total?.toLocaleString('en-US')}
                                         </span>
                                     </div>
                                     <button onClick={checkout}
@@ -286,13 +286,13 @@ const BuyerDashboard = () => {
                                             <div>
                                                 <div className="font-semibold text-gray-900">{o.product_name}</div>
                                                 <div className="text-sm text-gray-400 mt-0.5">
-                                                    {o.quantity} units • {new Date(o.created_at).toLocaleDateString('tr-TR')}
+                                                    {o.quantity} units • {new Date(o.created_at).toLocaleDateString('en-US')}
                                                 </div>
                                             </div>
                                         </div>
                                         <div className="text-right">
                                             <div className="font-black text-blue-600 text-lg">
-                                                ₺{o.total_price?.toLocaleString('tr-TR')}
+                                                ${o.total_price?.toLocaleString('en-US')}
                                             </div>
                                             <div className="text-xs text-emerald-500 font-semibold mt-0.5">Completed</div>
                                         </div>

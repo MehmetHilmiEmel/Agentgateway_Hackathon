@@ -64,7 +64,7 @@ const SellerDashboard = () => {
         try {
             const validToken = await getValidToken();
             const res = await axios.post(`${API}/chat`, {
-                message: `Add new product: code=${form.product_code}, name="${form.name}", price=${form.price} TL, stock=${form.stock} units, seller=${username}`
+                message: `Add new product: code=${form.product_code}, name="${form.name}", price=$${form.price}, stock=${form.stock} units, seller=${username}`
             }, { headers: { Authorization: validToken } });
             setFormMsg('✅ ' + res.data.message);
             setForm({ product_code: '', name: '', price: '', stock: '' });
@@ -103,7 +103,7 @@ const SellerDashboard = () => {
                         <div className="bg-gradient-to-br from-emerald-500/20 to-emerald-600/5 border border-emerald-500/20 rounded-2xl p-4">
                             <div className="text-xs text-emerald-400 font-semibold mb-1">This Month's Profit</div>
                             <div className="text-2xl font-bold text-emerald-400">
-                                {loading ? '...' : `₺${profit.toLocaleString('tr-TR')}`}
+                                {loading ? '...' : `$${profit.toLocaleString('en-US')}`}
                             </div>
                         </div>
                         <div className="grid grid-cols-2 gap-2">
@@ -114,7 +114,7 @@ const SellerDashboard = () => {
                             <div className="bg-gray-800/50 rounded-xl p-3">
                                 <div className="text-xs text-gray-500 mb-1">Revenue</div>
                                 <div className="text-sm font-bold text-blue-400">
-                                    {stats ? `₺${(stats.revenue / 1000).toFixed(0)}K` : '...'}
+                                    {stats ? `$${(stats.revenue / 1000).toFixed(0)}K` : '...'}
                                 </div>
                             </div>
                         </div>
@@ -169,7 +169,7 @@ const SellerDashboard = () => {
                                             </div>
                                             <div className="flex items-center gap-6 text-sm">
                                                 <div className="text-right">
-                                                    <div className="text-emerald-400 font-bold">₺{p.price.toLocaleString('tr-TR')}</div>
+                                                    <div className="text-emerald-400 font-bold">${p.price.toLocaleString('en-US')}</div>
                                                     <div className="text-gray-500 text-xs">price</div>
                                                 </div>
                                                 <div className="text-right">
@@ -195,7 +195,7 @@ const SellerDashboard = () => {
                                 {[
                                     { key: 'product_code', label: 'Product Code', placeholder: 'e.g: APL-PHN-016' },
                                     { key: 'name', label: 'Product Name', placeholder: 'e.g: iPhone 16 Pro' },
-                                    { key: 'price', label: 'Price (TL)', placeholder: 'e.g: 75000', type: 'number' },
+                                    { key: 'price', label: 'Price ($)', placeholder: 'e.g: 1500', type: 'number' },
                                     { key: 'stock', label: 'Stock Quantity', placeholder: 'e.g: 10', type: 'number' },
                                 ].map(field => (
                                     <div key={field.key}>
