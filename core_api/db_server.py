@@ -81,17 +81,17 @@ def startup_event():
     cursor = conn.cursor()
     cursor.execute("SELECT COUNT(*) FROM products")
     if cursor.fetchone()[0] == 0:
-        conn.execute("INSERT INTO products (product_code, name, price, stock, seller_username) VALUES (?, ?, ?, ?, ?)",
-                     ("MSI-LPT-001", "MSI Gaming Laptop", 45000.0, 10, "seller"))
-        conn.execute("INSERT INTO products (product_code, name, price, stock, seller_username) VALUES (?, ?, ?, ?, ?)",
-                     ("APL-PHN-015", "iPhone 15 Pro", 65000.0, 25, "seller"))
+        conn.execute("INSERT INTO products (product_code, name, price, stock, seller_username, image_url) VALUES (?,?,?,?,?,?)",
+                     ("MSI-LPT-001", "MSI Gaming Laptop", 1500.0, 10, "seller", None))
+        conn.execute("INSERT INTO products (product_code, name, price, stock, seller_username, image_url) VALUES (?,?,?,?,?,?)",
+                     ("APL-PHN-015", "iPhone 15 Pro", 1800.0, 25, "seller", None))
 
     cursor.execute("SELECT COUNT(*) FROM store_stats")
     if cursor.fetchone()[0] == 0:
-        conn.execute("INSERT INTO store_stats (period, revenue, cost) VALUES (?, ?, ?)",
-                     ("this_month", 250000.0, 80000.0))
-        conn.execute("INSERT INTO store_stats (period, revenue, cost) VALUES (?, ?, ?)",
-                     ("last_month", 180000.0, 65000.0))
+        conn.execute("INSERT INTO store_stats VALUES (?,?,?,?)",
+                     (None, "this_month", 7500.0, 2500.0))
+        conn.execute("INSERT INTO store_stats VALUES (?,?,?,?)",
+                     (None, "last_month", 5500.0, 1800.0))
 
     conn.commit()
     conn.close()
@@ -357,8 +357,8 @@ async def register_user(req: RegisterRequest):
             "http://localhost:8080/admin/realms/mcp_demo/users", json=user_data, headers=headers
         )
         if create_res.status_code != 201:
-            raise HTTPException(status_code=400, detail=f"Registration failed: {create_res.text}")
-
+            print(f"❌ Keycloak hata: {create_res.status_code} - {create_res.text}")  # EKLE
+            raise HTTPException(status_code=400, detail=f"Kayıt başarısız: {create_res.text}")
         user_id  = create_res.headers["Location"].split("/")[-1]
         role_res = await client.get(
             f"http://localhost:8080/admin/realms/mcp_demo/roles/{req.role}", headers=headers
