@@ -10,6 +10,12 @@ MCP.STORE is an e-commerce platform with role-based access control, developed us
 
 [![MCP.STORE Demo](https://img.youtube.com/vi/OFJhmMtqc6k/maxresdefault.jpg)](https://youtu.be/OFJhmMtqc6k)
 
+
+## 📖 Blog Post
+
+Full technical write-up → [Medium](https://medium.com/@mehmethilmi81/securing-ai-agents-at-scale-role-based-access-control-for-mcp-with-agentgateway-ac046366da7c)
+
+
 ## 🏗️ Architecture
 
 ```
