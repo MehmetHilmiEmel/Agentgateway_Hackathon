@@ -20,7 +20,7 @@ async def list_products() -> str:
             data = res.json()
             result = "Available Products:\n"
             for p in data.get("products", []):
-                result += f"- [{p['product_code']}] {p['name']} | Price: {p['price']} TL | Stock: {p['stock']} units\n"
+                result += f"- [{p['product_code']}] {p['name']} | Price: {p['price']} Dollar | Stock: {p['stock']} units\n"
             return result
         except Exception as e:
             return f"Error: {str(e)}"
@@ -51,13 +51,7 @@ async def get_product_detail(product_code: str) -> str:
 async def add_product(product_code: str, name: str, price: float, stock: int, seller_username: str) -> str:
     """
     Adds a new product to the store. ONLY sellers can use this.
-    Use this when the user wants to add a new product.
-    Parameters:
-    - product_code: Unique product code (e.g., APL-PHN-016)
-    - name: Product name
-    - price: Selling price in TL
-    - stock: Stock quantity
-    - seller_username: Username of the seller
+    Price must be in USD (dollars).
     """
     payload = {
         "product_code": product_code,
@@ -92,7 +86,7 @@ async def get_my_products(seller_username: str) -> str:
                 return "You haven't added any products yet."
             result = f"Products of seller {seller_username}:\n"
             for p in products:
-                result += f"- [{p['product_code']}] {p['name']} | {p['price']} TL | Stock: {p['stock']}\n"
+                result += f"- [{p['product_code']}] {p['name']} | {p['price']} Dollar | Stock: {p['stock']}\n"
             return result
         except Exception as e:
             return f"Error: {str(e)}"
@@ -161,9 +155,11 @@ async def add_to_cart(username: str, product_code: str, quantity: int = 1) -> st
     """
     Adds a product to the buyer's cart. ONLY buyers can use this.
     Use this when the user says 'add to cart' or 'i want to buy'.
+    IMPORTANT: product_code must be the exact product code (e.g., MSI-LPT-001).
+    If user says product name, first call list_products to find the exact code.
     Parameters:
     - username: Username of the buyer
-    - product_code: Code of the product to add
+    - product_code: Exact product code from the catalog
     - quantity: Quantity (default 1)
     """
     async with httpx.AsyncClient() as client:
@@ -251,7 +247,7 @@ async def get_my_orders(username: str) -> str:
             result = "📦 Your Orders:\n"
             for o in orders:
                 result += (f"- {o['product_name']} x{o['quantity']} | "
-                           f"{o['total_price']} TL | {o['created_at']}\n")
+                           f"{o['total_price']} Dollar | {o['created_at']}\n")
             return result
         except Exception as e:
             return f"Error: {str(e)}"
