@@ -6,6 +6,10 @@ MCP.STORE is an e-commerce platform with role-based access control, developed us
 
 ---
 
+## 🎥 Demo
+
+[![MCP.STORE Demo](https://img.youtube.com/vi/OFJhmMtqc6k/maxresdefault.jpg)](https://youtu.be/OFJhmMtqc6k)
+
 ## 🏗️ Architecture
 
 ```
