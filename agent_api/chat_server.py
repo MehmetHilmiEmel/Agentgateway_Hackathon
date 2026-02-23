@@ -34,21 +34,22 @@ def decode_username(authorization: str) -> str:
         payload = token.split('.')[1]
         payload += '=' * (4 - len(payload) % 4)
         decoded = json.loads(base64.b64decode(payload))
+        
         exp = decoded.get('exp', 0)
         import time
         remaining = int(exp - time.time())
         print(f"✅ Token valid, {remaining} seconds left")
+
         return decoded.get('preferred_username', 'user')
     except:
         return 'user'
 
 def mcp_schema_to_gemini(tool: dict, username: str) -> dict:
-    """FastMCP inputSchema formatını Gemini function declaration formatına çevirir."""
+    """Converts the FastMCP inputSchema format to the Gemini function declaration format."""
     gemini_tool = {
         "name": tool["name"],
         "description": tool.get("description", ""),
     }
-
     input_schema = tool.get("inputSchema", {})
     properties   = input_schema.get("properties", {})
     required     = input_schema.get("required", [])
@@ -57,7 +58,8 @@ def mcp_schema_to_gemini(tool: dict, username: str) -> dict:
         gemini_props = {}
         for prop_name, prop_def in properties.items():
             prop_type = prop_def.get("type", "string").upper()
-            # JSON Schema → Gemini type mapping
+            
+            # JSON Schema -> Gemini type mapping
             type_map = {
                 "STRING":  "STRING",
                 "NUMBER":  "NUMBER",
@@ -67,8 +69,8 @@ def mcp_schema_to_gemini(tool: dict, username: str) -> dict:
                 "OBJECT":  "OBJECT",
             }
             gemini_type = type_map.get(prop_type, "STRING")
-
-            # username/seller_username parametrelerine otomatik hint ekle
+            
+            # Add an automatic hint to username/seller_username parameters
             description = prop_def.get("description", "")
             if prop_name in ("username", "seller_username"):
                 description = f"Always use '{username}' for this parameter."
@@ -83,11 +85,10 @@ def mcp_schema_to_gemini(tool: dict, username: str) -> dict:
             "properties": gemini_props,
             "required":   required,
         }
-
     return gemini_tool
 
 async def fetch_mcp_tools(auth_token: str, username: str) -> list:
-    """Gateway'den tool listesini çeker ve Gemini formatına dönüştürür."""
+    """Fetches the tool list from the gateway and converts it to Gemini format."""
     payload = {"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}}
     headers = {
         "Authorization": auth_token,
@@ -101,9 +102,11 @@ async def fetch_mcp_tools(auth_token: str, username: str) -> list:
             raw = res.text
             if raw.startswith("data:"):
                 raw = raw[len("data:"):].strip()
+            
             result = json.loads(raw)
             tools  = result.get("result", {}).get("tools", [])
             print(f"📋 {len(tools)} tools fetched from gateway")
+            
             return [mcp_schema_to_gemini(t, username) for t in tools]
         except Exception as e:
             print(f"❌ Tool fetch error: {e}")
@@ -138,12 +141,14 @@ async def call_mcp_gateway(method_name: str, arguments: dict, auth_token: str) -
             raw = res.text
             if raw.startswith("data:"):
                 raw = raw[len("data:"):].strip()
+            
             result = json.loads(raw)
 
             if "result" in result and "content" in result["result"]:
                 return result["result"]["content"][0].get("text", "Empty result.")
             if "result" in result and "result" in result["result"]:
                 return str(result["result"]["result"])
+
             return f"Error: {result.get('error', {}).get('message', 'Unknown error')}"
         except Exception as e:
             return f"Connection error: {str(e)}"
@@ -154,8 +159,6 @@ async def chat_with_agent(request: ChatRequest, authorization: str = Header(None
         raise HTTPException(status_code=401, detail="Token missing!")
 
     username = decode_username(authorization)
-
-    # Gateway'den tool'ları dinamik olarak çek
     tools_definition = await fetch_mcp_tools(authorization, username)
     if not tools_definition:
         raise HTTPException(status_code=500, detail="Could not fetch tools from gateway.")
@@ -164,30 +167,30 @@ async def chat_with_agent(request: ChatRequest, authorization: str = Header(None
         chat = client.chats.create(
             model="gemini-2.0-flash",
             config=types.GenerateContentConfig(
-            system_instruction=f"""You are an e-commerce assistant.
-            CURRENT USER: {username}
-
-            CRITICAL RULES:
-            1. Call tools DIRECTLY, never ask for confirmation or permission.
-            2. Always use '{username}' for username and seller_username parameters.
-            3. If you get an authorization error, just say 'You do not have permission for this action.'
-            4. Use 'this_month' as default period if not specified.
-            5. All prices are in USD. Always show prices with $ symbol.
-            6. For add_to_cart, always use exact product_code. If unknown, call list_products first.
-            7. Always respond in English.
-            8. Keep responses short and clear.""",
+                system_instruction=f"""You are an e-commerce assistant.
+                CURRENT USER: {username}
+                CRITICAL RULES:
+                1. Call tools DIRECTLY, never ask for confirmation or permission.
+                2. Always use '{username}' for username and seller_username parameters.
+                3. If you get an authorization error, just say 'You do not have permission for this action.'
+                4. Use 'this_month' as the default period if not specified.
+                5. All prices are in USD. Always show prices with the $ symbol.
+                6. For add_to_cart, always use the exact product_code. If unknown, call list_products first.
+                7. Always respond in English.
+                8. Keep responses short and clear.""",
                 tools=[{"function_declarations": tools_definition}]
             )
         )
 
         response = chat.send_message(request.message)
 
-        for _ in range(5):
+        for _ in range(5): # Loop for multi-turn function calling
             parts = response.candidates[0].content.parts
             fc    = next((p for p in parts if hasattr(p, 'function_call') and p.function_call), None)
+
             if not fc:
                 break
-
+            
             call        = fc.function_call
             tool_result = await call_mcp_gateway(call.name, dict(call.args), authorization)
             print(f"🔧 {call.name} → {tool_result[:80]}")
@@ -207,7 +210,7 @@ async def chat_with_agent(request: ChatRequest, authorization: str = Header(None
                 if hasattr(part, 'text') and part.text:
                     final_text = part.text
                     break
-
+        
         return {"message": final_text or "Done.", "status": "success"}
 
     except Exception as e:

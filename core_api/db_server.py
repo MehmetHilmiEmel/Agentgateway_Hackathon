@@ -1,4 +1,5 @@
 # core_api/db_server.py
+
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Optional
@@ -97,7 +98,7 @@ def startup_event():
     conn.close()
     print("✅ Database ready!")
 
-# ── Data Models ────────────────────────────────────────────────────────────
+# -- Data Models ----------------------------------------------------------------
 
 class ProductCreate(BaseModel):
     product_code: str
@@ -130,7 +131,7 @@ class LoginRequest(BaseModel):
     username: str
     password: str
 
-# ── Product Endpoints ────────────────────────────────────────────────────────
+# -- Product Endpoints ----------------------------------------------------------
 
 @app.get("/products")
 def get_all_products():
@@ -199,7 +200,7 @@ def delete_product(product_code: str):
         raise HTTPException(status_code=404, detail="Product not found")
     return {"message": "Product deleted"}
 
-# ── Statistics Endpoints ──────────────────────────────────────────────────
+# -- Statistics Endpoints ----------------------------------------------------
 
 @app.get("/stats/{period}")
 def get_store_stats(period: str):
@@ -212,7 +213,7 @@ def get_store_stats(period: str):
         raise HTTPException(status_code=404, detail="No data found for this period")
     return dict(stats)
 
-# ── Cart Endpoints ───────────────────────────────────────────────────────
+# -- Cart Endpoints ---------------------------------------------------------
 
 @app.get("/cart/{username}")
 def get_cart(username: str):
@@ -242,7 +243,6 @@ def add_to_cart(item: CartItem):
     if product["stock"] < item.quantity:
         conn.close()
         raise HTTPException(status_code=400, detail="Insufficient stock")
-
     try:
         conn.execute('''
             INSERT INTO cart (username, product_code, quantity)
@@ -288,16 +288,19 @@ def checkout(username: str):
         item = dict(item)
         subtotal = item["quantity"] * item["price"]
         total += subtotal
+
         # Write to order
         conn.execute('''
             INSERT INTO orders (username, product_code, product_name, quantity, unit_price, total_price)
             VALUES (?, ?, ?, ?, ?, ?)
         ''', (username, item["product_code"], item["name"], item["quantity"], item["price"], subtotal))
+
         # Decrease stock
         conn.execute(
             "UPDATE products SET stock = stock - ? WHERE product_code = ?",
             (item["quantity"], item["product_code"])
         )
+
     # Clear cart
     conn.execute("DELETE FROM cart WHERE username = ?", (username,))
     conn.commit()
@@ -313,7 +316,7 @@ def get_orders(username: str):
     conn.close()
     return {"orders": [dict(o) for o in orders]}
 
-# ── Proxy Endpoints (For Dashboard) ─────────────────────────────────────
+# -- Proxy Endpoints (For Dashboard) ---------------------------------------
 
 @app.get("/proxy/jaeger/traces")
 async def proxy_jaeger_traces(service: str = "agentgateway", limit: int = 50):
@@ -322,7 +325,7 @@ async def proxy_jaeger_traces(service: str = "agentgateway", limit: int = 50):
     start = end - 3600 * 1000000
     async with httpx.AsyncClient() as client:
         res = await client.get("http://localhost:16686/api/traces",
-            params={"service": service, "start": start, "end": end, "limit": limit})
+                               params={"service": service, "start": start, "end": end, "limit": limit})
         return res.json()
 
 @app.get("/proxy/gateway/metrics")
@@ -331,7 +334,7 @@ async def proxy_gateway_metrics():
         res = await client.get("http://localhost:3000/metrics")
         return {"data": res.text}
 
-# ── Auth Endpoints ────────────────────────────────────────────────────────
+# -- Auth Endpoints ----------------------------------------------------------
 
 @app.post("/register")
 async def register_user(req: RegisterRequest):
@@ -353,22 +356,27 @@ async def register_user(req: RegisterRequest):
             "requiredActions": [],
             "credentials": [{"type": "password", "value": req.password, "temporary": False}]
         }
+
         create_res = await client.post(
             "http://localhost:8080/admin/realms/mcp_demo/users", json=user_data, headers=headers
         )
+
         if create_res.status_code != 201:
-            print(f"❌ Keycloak hata: {create_res.status_code} - {create_res.text}")  # EKLE
-            raise HTTPException(status_code=400, detail=f"Kayıt başarısız: {create_res.text}")
+            print(f"❌ Keycloak error: {create_res.status_code} - {create_res.text}")
+            raise HTTPException(status_code=400, detail=f"Registration failed: {create_res.text}")
+
         user_id  = create_res.headers["Location"].split("/")[-1]
         role_res = await client.get(
             f"http://localhost:8080/admin/realms/mcp_demo/roles/{req.role}", headers=headers
         )
         role_info = role_res.json()
+
         await client.post(
             f"http://localhost:8080/admin/realms/mcp_demo/users/{user_id}/role-mappings/realm",
             json=[role_info], headers=headers
         )
-        return {"message": "Registration successful"}
+
+    return {"message": "Registration successful"}
 
 @app.post("/login")
 async def login_user(req: LoginRequest):
@@ -382,10 +390,12 @@ async def login_user(req: LoginRequest):
     }
     async with httpx.AsyncClient() as client:
         res = await client.post(token_url, data=data)
-        if res.status_code != 200:
-            print(f"❌ Keycloak Error: {res.status_code} - {res.text}")
-            raise HTTPException(status_code=401, detail=f"Error: {res.json().get('error_description', 'Login failed')}")
-        return res.json()
+
+    if res.status_code != 200:
+        print(f"❌ Keycloak Error: {res.status_code} - {res.text}")
+        raise HTTPException(status_code=401, detail=f"Error: {res.json().get('error_description', 'Login failed')}")
+
+    return res.json()
 
 class RefreshRequest(BaseModel):
     refresh_token: str
@@ -400,9 +410,11 @@ async def refresh_token(req: RefreshRequest):
     }
     async with httpx.AsyncClient() as client:
         res = await client.post(token_url, data=data)
-        if res.status_code != 200:
-            raise HTTPException(status_code=401, detail="Refresh failed")
-        return res.json()
+
+    if res.status_code != 200:
+        raise HTTPException(status_code=401, detail="Refresh failed")
+
+    return res.json()
 
 if __name__ == "__main__":
     import uvicorn
