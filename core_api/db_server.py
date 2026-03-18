@@ -12,13 +12,14 @@ app = FastAPI(title="Core DB API", description="E-Commerce Database Service (Por
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-DB_FILE = "database.db"
+DB_FILE = os.getenv("DB_PATH", "database.db")
+KEYCLOAK_URL = os.getenv("KEYCLOAK_URL", "http://localhost:8080")
 
 def get_db_connection():
     conn = sqlite3.connect(DB_FILE)
@@ -338,7 +339,7 @@ async def proxy_gateway_metrics():
 
 @app.post("/register")
 async def register_user(req: RegisterRequest):
-    auth_url  = "http://localhost:8080/realms/master/protocol/openid-connect/token"
+    auth_url  = f"{KEYCLOAK_URL}realms/master/protocol/openid-connect/token"
     auth_data = {"client_id": "admin-cli", "username": "admin", "password": "admin", "grant_type": "password"}
 
     async with httpx.AsyncClient() as client:
@@ -358,7 +359,7 @@ async def register_user(req: RegisterRequest):
         }
 
         create_res = await client.post(
-            "http://localhost:8080/admin/realms/mcp_demo/users", json=user_data, headers=headers
+            f"{KEYCLOAK_URL}admin/realms/mcp_demo/users", json=user_data, headers=headers
         )
 
         if create_res.status_code != 201:
@@ -367,12 +368,12 @@ async def register_user(req: RegisterRequest):
 
         user_id  = create_res.headers["Location"].split("/")[-1]
         role_res = await client.get(
-            f"http://localhost:8080/admin/realms/mcp_demo/roles/{req.role}", headers=headers
+            f"{KEYCLOAK_URL}admin/realms/mcp_demo/roles/{req.role}", headers=headers
         )
         role_info = role_res.json()
 
         await client.post(
-            f"http://localhost:8080/admin/realms/mcp_demo/users/{user_id}/role-mappings/realm",
+            f"{KEYCLOAK_URL}admin/realms/mcp_demo/users/{user_id}/role-mappings/realm",
             json=[role_info], headers=headers
         )
 
@@ -380,7 +381,7 @@ async def register_user(req: RegisterRequest):
 
 @app.post("/login")
 async def login_user(req: LoginRequest):
-    token_url = "http://localhost:8080/realms/mcp_demo/protocol/openid-connect/token"
+    token_url = f"{KEYCLOAK_URL}realms/mcp_demo/protocol/openid-connect/token"
     data = {
         "client_id": "mcp_client",
         "username": req.username,
@@ -402,7 +403,7 @@ class RefreshRequest(BaseModel):
 
 @app.post("/refresh")
 async def refresh_token(req: RefreshRequest):
-    token_url = "http://localhost:8080/realms/mcp_demo/protocol/openid-connect/token"
+    token_url = f"{KEYCLOAK_URL}realms/mcp_demo/protocol/openid-connect/token"
     data = {
         "client_id": "mcp_client",
         "grant_type": "refresh_token",

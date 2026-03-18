@@ -8,6 +8,8 @@ const Chatbot = () => {
     const [loading, setLoading] = useState(false);
     const scrollRef = useRef(null);
 
+    const API = import.meta.env.VITE_AGENT_API_URL || 'http://localhost:8001';
+
     useEffect(() => { scrollRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
     const sendMessage = async () => {
@@ -23,7 +25,7 @@ const Chatbot = () => {
 
         try {
             // We send a request to our Gemini Chat API (port 8001)
-            const response = await axios.post('http://localhost:8001/chat',
+            const response = await axios.post(`${API}/chat`,
                 { message: input },
                 {
                     headers: {

@@ -8,10 +8,12 @@ const Register = () => {
     const [status, setStatus] = useState('');
     const navigate = useNavigate();
 
+    const API = import.meta.env.VITE_CORE_API_URL || 'http://localhost:8000';
+
     const handleRegister = async (e) => {
         e.preventDefault();
         try {
-            const res = await axios.post('http://localhost:8000/register', formData);
+            const res = await axios.post(`${API}/register`, formData);
             setStatus("Success! Redirecting to login page...");
             setTimeout(() => navigate('/login'), 2000);
         } catch (err) {

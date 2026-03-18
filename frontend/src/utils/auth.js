@@ -11,9 +11,11 @@ export const getValidToken = async () => {
         return `Bearer ${token}`;
     }
 
+    const API = import.meta.env.VITE_CORE_API_URL || 'http://localhost:8000';
+
     // Token is about to expire — refresh it
     try {
-        const res = await axios.post('http://localhost:8000/refresh', { refresh_token });
+        const res = await axios.post(`${API}/refresh`, { refresh_token });
         localStorage.setItem('token', res.data.access_token);
         localStorage.setItem('token_exp', Date.now() + (res.data.expires_in * 1000));
         if (res.data.refresh_token) {

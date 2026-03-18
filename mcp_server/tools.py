@@ -1,9 +1,10 @@
 # mcp_server/tools.py
 from fastmcp import FastMCP
 import httpx
+import os
 
 mcp = FastMCP(name="E-Commerce AI Tools")
-DB_API_URL = "http://127.0.0.1:8000"
+DB_API_URL = os.getenv("DB_API_URL", "http://127.0.0.1:8000")
 
 # ── COMMON TOOLS ────────────────────────────────────────────────────────────
 

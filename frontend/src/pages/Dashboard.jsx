@@ -17,8 +17,8 @@ export const getUserRoles = () => {
 export const isAdmin = () => getUserRoles().includes('admin');
 
 // ── Constants ─────────────────────────────────────────────────────────────
-const JAEGER_API = 'http://localhost:8000/proxy/jaeger';
-const GATEWAY_METRICS = 'http://localhost:8000/proxy/gateway/metrics';
+const JAEGER_API = import.meta.env.VITE_JAEGER_API_URL || 'http://localhost:8000/proxy/jaeger';
+const GATEWAY_METRICS = import.meta.env.VITE_GATEWAY_METRICS_URL || 'http://localhost:8000/proxy/gateway/metrics';
 const TOOL_COLORS = {
     list_products: { bar: 'bg-blue-500', badge: 'bg-blue-50 text-blue-700' },
     get_product_detail: { bar: 'bg-indigo-500', badge: 'bg-indigo-50 text-indigo-700' },

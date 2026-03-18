@@ -3,8 +3,9 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { getValidToken } from '../utils/auth';
 
-const API = 'http://localhost:8001';
-const DB_API = 'http://localhost:8000';
+
+const API = import.meta.env.VITE_AGENT_API_URL || 'http://localhost:8001';
+const DB_API = import.meta.env.VITE_CORE_API_URL || 'http://localhost:8000';
 
 const SellerDashboard = () => {
     const username = localStorage.getItem('username');
