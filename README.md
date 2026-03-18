@@ -369,3 +369,9 @@ Access to all tools + /admin dashboard
 | React | 19 | Frontend |
 | Tailwind CSS | 4 | Styling |
 | SQLite | 3 | Database |
+
+
+
+## 📖 Ekstra Resources
+- Medium : https://medium.com/@mehmethilmi81/building-a-multi-agent-ai-system-with-google-adk-mcp-and-agentgateway-52eaf2a84c1a
+- Youtube : https://www.youtube.com/watch?v=Zv7sBQ9dZzU
