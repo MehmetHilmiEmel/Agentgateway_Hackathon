@@ -255,4 +255,4 @@ async def get_my_orders(username: str) -> str:
 
 if __name__ == "__main__":
     print("🚀 FastMCP Server is starting on port 9000...")
-    mcp.run(transport="http", host="127.0.0.1", port=9000)
+    mcp.run(transport="http", host="0.0.0.0", port=9000)
