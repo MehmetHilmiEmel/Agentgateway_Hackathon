@@ -1,0 +1,124 @@
+# --- CORE DB API ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: core-api
+  namespace: mcp-store
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: core-api
+  template:
+    metadata:
+      labels:
+        app: core-api
+    spec:
+      containers:
+      - name: core-api
+        image: hilmiemel/mcp-store-core-api:v2
+        imagePullPolicy: Always
+        env:
+        - name: DB_PATH
+          value: "/app/database.db"
+        - name: KEYCLOAK_URL
+          value: "http://keycloak-service:8080/"
+        ports:
+        - containerPort: 8000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: core-api-service
+  namespace: mcp-store
+spec:
+  type: LoadBalancer 
+  selector:
+    app: core-api
+  ports:
+  - port: 8000
+    targetPort: 8000
+
+# --- MCP SERVER ---
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-server
+  namespace: mcp-store
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mcp-server
+  template:
+    metadata:
+      labels:
+        app: mcp-server
+    spec:
+      containers:
+      - name: mcp-server
+        image: hilmiemel/mcp-store-mcp-server:v2
+        imagePullPolicy: Always
+        env:
+        - name: DB_API_URL
+          value: "http://core-api-service:8000" 
+        ports:
+        - containerPort: 9000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-server-service
+  namespace: mcp-store
+spec:
+  type: ClusterIP 
+  selector:
+    app: mcp-server
+  ports:
+  - port: 9000
+    targetPort: 9000
+
+# --- AGENT API ---
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent-api
+  namespace: mcp-store
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: agent-api
+  template:
+    metadata:
+      labels:
+        app: agent-api
+    spec:
+      containers:
+      - name: agent-api
+        image: hilmiemel/mcp-store-agent-api:v5
+        imagePullPolicy: Always
+        env:
+        - name: GEMINI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: mcp-secrets
+              key: GEMINI_API_KEY
+        - name: GATEWAY_URL
+          value: "http://agentgateway-proxy.agentgateway-system.svc.cluster.local:3000/mcp" 
+        - containerPort: 8001
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: agent-api-service
+  namespace: mcp-store
+spec:
+  type: LoadBalancer 
+  selector:
+    app: agent-api
+  ports:
+  - port: 8001
+    targetPort: 8001

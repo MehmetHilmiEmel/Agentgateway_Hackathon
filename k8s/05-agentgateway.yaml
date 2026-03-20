@@ -1,0 +1,112 @@
+
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: agentgateway-proxy
+  namespace: agentgateway-system
+spec:
+  gatewayClassName: agentgateway
+  listeners:
+    - protocol: HTTP
+      port: 3000
+      name: mcp-secure-listener
+      allowedRoutes:
+        namespaces:
+          from: All
+
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayBackend
+metadata:
+  name: mcp-backend
+  namespace: agentgateway-system
+spec:
+  mcp:
+    sessionRouting: Stateful
+    targets:
+      - name: mcp-target
+        static:
+          host: mcp-server-service.mcp-store.svc.cluster.local  
+          port: 9000
+          protocol: StreamableHTTP
+
+
+
+---
+
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: mcp-route
+  namespace: agentgateway-system
+spec:
+  parentRefs:
+    - name: agentgateway-proxy
+      namespace: agentgateway-system
+  rules:
+    - filters:
+        - type: CORS
+          cors:
+            allowCredentials: false
+            allowHeaders: ["*"]
+            allowMethods: ["*"]
+            allowOrigins: ["*"]
+      backendRefs:
+        - group: agentgateway.dev
+          kind: AgentgatewayBackend
+          name: mcp-backend
+      matches:
+        - path:
+            type: PathPrefix
+            value: /mcp
+
+---
+
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayPolicy
+metadata:
+  name: mcp-auth-policy
+  namespace: agentgateway-system
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: mcp-route
+  traffic:
+    jwtAuthentication:
+      mode: Strict
+      providers:
+        - issuer: "http://keycloak-service:8080/realms/mcp_demo"
+          audiences:
+            - account
+          jwks:
+            remote:
+              backendRef:
+                name: keycloak-service
+                namespace: mcp-store
+                port: 8080
+              jwksPath: "/realms/mcp_demo/protocol/openid-connect/certs"
+
+
+
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayPolicy
+metadata:
+  name: mcp-rbac-policy
+  namespace: agentgateway-system
+spec:
+  targetRefs:
+    - group: agentgateway.dev
+      kind: AgentgatewayBackend
+      name: mcp-backend
+  backend:
+    mcp:
+      authorization:
+        action: Allow
+        policy:
+          matchExpressions:
+            - 'jwt.realm_access.roles.contains("buyer") && mcp.tool.name in ["list_products", "get_product_detail", "add_to_cart", "get_cart", "remove_from_cart", "checkout", "get_my_orders"]'
+            - 'jwt.realm_access.roles.contains("seller") && mcp.tool.name in ["list_products", "get_product_detail", "add_product", "get_my_products", "update_product_stock", "delete_product", "get_store_profit_loss"]'
+            - 'jwt.realm_access.roles.contains("admin") && mcp.tool.name in ["list_products", "get_product_detail", "add_product", "get_my_products", "update_product_stock", "delete_product", "get_store_profit_loss", "add_to_cart", "get_cart", "remove_from_cart", "checkout", "get_my_orders"]'
+
