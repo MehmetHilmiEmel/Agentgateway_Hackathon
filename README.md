@@ -1,5 +1,26 @@
 # MCP.STORE — AgentGateway Hackathon Project
 
+## 📋 Table of Contents
+
+- [Project Summary](#-project-summary)
+- [Demo](#-demo)
+- [Blog Post](#-blog-post)
+- [Architecture](#️-architecture)
+- [Project Structure](#-project-structure)
+- [Installation & Setup (Local)](#-installation--setup-local)
+- [Kubernetes Deployment (GCP)](#️-kubernetes-deployment-gcp)
+- [User Roles](#-user-roles)
+- [MCP Tools](#-mcp-tools)
+- [AgentGateway Configuration](#️-agentgateway-configuration)
+- [Admin Observability Dashboard](#-admin-observability-dashboard)
+- [Token Management](#-token-management)
+- [Database Tables](#️-database-tables)
+- [Test Scenarios](#-test-scenarios)
+- [Common Issues](#-common-issues)
+- [Technologies Used](#-technologies-used)
+
+---
+
 ## 📖 Project Summary
 
 MCP.STORE is an e-commerce platform with role-based access control, developed using **AgentGateway** and **Gemini AI**. Its main goal is to secure and track who accesses the MCP (Model Context Protocol) servers, when, and with what permissions using **Keycloak JWT authentication**, **AgentGateway authorization**, and **Jaeger tracing**.
@@ -10,11 +31,13 @@ MCP.STORE is an e-commerce platform with role-based access control, developed us
 
 [![MCP.STORE Demo](https://img.youtube.com/vi/OFJhmMtqc6k/maxresdefault.jpg)](https://youtu.be/OFJhmMtqc6k)
 
+---
 
 ## 📖 Blog Post
 
 Full technical write-up → [Medium](https://medium.com/@mehmethilmi81/securing-ai-agents-at-scale-role-based-access-control-for-mcp-with-agentgateway-ac046366da7c)
 
+---
 
 ## 🏗️ Architecture
 
@@ -82,12 +105,19 @@ agentgateway_hackathon/
 ├── gateway/
 │   └── config.yaml              # AgentGateway configuration
 │
-└── docker-compose.yml           # Keycloak + Jaeger
+├── k8s/                         # Kubernetes manifests for GCP deployment
+│   ├── 01-setup.yaml            # Namespace, ConfigMaps, Secrets
+│   ├── 02-infra.yaml            # Keycloak + Jaeger
+│   ├── 03-backends.yaml         # Core API + MCP Server + Agent API
+│   ├── 04-frontend.yaml         # React frontend
+│   └── 05-agentgateway.yaml     # AgentGateway deployment
+│
+└── docker-compose.yml           # Keycloak + Jaeger (local)
 ```
 
 ---
 
-## 🚀 Installation & Setup
+## 🚀 Installation & Setup (Local)
 
 ### Prerequisites
 
@@ -181,6 +211,116 @@ cd frontend
 npm install
 npm run dev
 # Runs on Port 5173
+```
+
+---
+
+## ☸️ Kubernetes Deployment (GCP)
+
+Deploy the full MCP.STORE stack on Google Cloud Platform using Kubernetes (GKE).
+
+### Prerequisites
+
+- A running GKE cluster
+- `kubectl` configured to point to your cluster
+- `helm` installed
+
+### 1. Install Gateway API CRDs
+
+```bash
+kubectl apply --server-side -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.0/standard-install.yaml
+```
+
+### 2. Install AgentGateway via Helm
+
+```bash
+helm upgrade -i --create-namespace \
+  --namespace agentgateway-system \
+  --version v1.0.0 agentgateway-crds oci://cr.agentgateway.dev/charts/agentgateway-crds
+
+helm upgrade -i -n agentgateway-system agentgateway oci://cr.agentgateway.dev/charts/agentgateway \
+  --version v1.0.0
+```
+
+### 3. Configure Your API Key
+
+In `k8s/01-setup.yaml`, replace the placeholder with your actual Gemini API key:
+
+```yaml
+GEMINI_API_KEY: your_gemini_api_key_here
+```
+
+### 4. Apply Manifests
+
+```bash
+cd k8s/
+kubectl apply -f 01-setup.yaml
+kubectl apply -f 02-infra.yaml
+kubectl apply -f 03-backends.yaml
+kubectl apply -f 04-frontend.yaml
+kubectl apply -f 05-agentgateway.yaml
+```
+
+### 5. Get External IP Addresses
+
+```bash
+kubectl get svc -n mcp-store
+```
+
+Note the external IP addresses for:
+- `frontend-service` (e.g. `35.233.2.115`)
+- `keycloak-service` (e.g. `34.38.106.69`)
+
+### 6. Configure Keycloak
+
+Open the Keycloak admin panel in a new incognito window:
+
+```
+http://<keycloak-service-external-ip>:8080/
+```
+
+- **Username:** `admin`
+- **Password:** `admin`
+
+**Create Realm:**
+- Realm name: `mcp_demo`
+
+**Create Client:**
+- Client ID: `mcp_client`
+- Client type: `OpenID Connect`
+- Direct access grants: ✅ Enabled
+- Valid redirect URIs: `http://<frontend-service-external-ip>/*`
+
+**Create Realm Roles:**
+- `buyer`
+- `seller`
+- `admin`
+
+### 7. Access the Application
+
+Navigate to your frontend service's external IP in a browser:
+
+```
+http://<frontend-service-external-ip>
+```
+
+### 8. Test the Deployment
+
+**As a Buyer** — Sign up at the frontend URL and select the `buyer` role:
+```
+"list products"                       → calls list_products
+"add MSI laptop to my cart"           → calls add_to_cart
+"show my cart"                        → calls get_cart
+"checkout"                            → calls checkout
+"show this month's profit report"     → 403 AUTHORIZATION ERROR (seller tool)
+```
+
+**As a Seller** — Log out, register a new account and select the `seller` role:
+```
+"list my products"                    → calls get_my_products
+"show this month's profit status"     → calls get_store_profit_loss
+"add product with code TEST-001..."   → calls add_product
+"show my cart"                        → 403 AUTHORIZATION ERROR (buyer tool)
 ```
 
 ---
@@ -306,31 +446,6 @@ SQLite (`database.db`):
 | `cart` | Cart (username, product_code, quantity) |
 | `orders` | Orders (username, product_code, quantity, total_price) |
 
----
-
-## 🧪 Test Scenarios
-
-### With Buyer:
-```
-"list products"                       → calls list_products
-"add MSI laptop to my cart"           → calls add_to_cart
-"show my cart"                        → calls get_cart
-"checkout"                            → calls checkout
-"show this month's profit report"     → 403 AUTHORIZATION ERROR (seller tool)
-```
-
-### With Seller:
-```
-"list my products"                    → calls get_my_products
-"show this month's profit status"     → calls get_store_profit_loss
-"add product with code TEST-001..."   → calls add_product
-"show my cart"                        → 403 AUTHORIZATION ERROR (buyer tool)
-```
-
-### With Admin:
-```
-Access to all tools + /admin dashboard
-```
 
 ---
 
@@ -369,9 +484,12 @@ Access to all tools + /admin dashboard
 | React | 19 | Frontend |
 | Tailwind CSS | 4 | Styling |
 | SQLite | 3 | Database |
+| Kubernetes | latest | Container orchestration (GCP) |
+| Helm | latest | Kubernetes package manager |
 
+---
 
+## 📖 Extra Resources
 
-## 📖 Ekstra Resources
-- Medium : https://medium.com/@mehmethilmi81/building-a-multi-agent-ai-system-with-google-adk-mcp-and-agentgateway-52eaf2a84c1a
-- Youtube : https://www.youtube.com/watch?v=Zv7sBQ9dZzU
+- Medium: https://medium.com/@mehmethilmi81/building-a-multi-agent-ai-system-with-google-adk-mcp-and-agentgateway-52eaf2a84c1a
+- YouTube: https://www.youtube.com/watch?v=Zv7sBQ9dZzU
