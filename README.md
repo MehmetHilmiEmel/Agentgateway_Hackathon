@@ -477,7 +477,7 @@ SQLite (`database.db`):
 |-----------|----------|----------|
 | AgentGateway | latest | MCP proxy, auth, tracing |
 | FastMCP | latest | MCP server |
-| Gemini | 2.0 Flash | AI assistant |
+| Gemini | 2.5 Flash | AI assistant |
 | Keycloak | 26.0 | Identity provider |
 | Jaeger | latest | Distributed tracing |
 | FastAPI | latest | REST API |
