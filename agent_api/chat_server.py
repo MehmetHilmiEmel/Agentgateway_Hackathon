@@ -87,18 +87,38 @@ def mcp_schema_to_gemini(tool: dict, username: str) -> dict:
         }
     return gemini_tool
 
-async def fetch_mcp_tools(auth_token: str, username: str) -> list:
-    """Fetches the tool list from the gateway and converts it to Gemini format."""
-    payload = {"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}}
+async def fetch_mcp_tools(auth_token: str, username: str) -> tuple[list, str]:
+    """Initialize session then fetch tools from gateway."""
     headers = {
         "Authorization": auth_token,
         "Content-Type":  "application/json",
         "Accept":        "application/json, text/event-stream",
         "mcp-protocol-version": "2024-11-05",
     }
+    
     async with httpx.AsyncClient() as http_client:
         try:
-            res = await http_client.post(GATEWAY_URL, json=payload, headers=headers, timeout=10.0)
+            init_payload = {
+                "jsonrpc": "2.0", "id": 1, "method": "initialize",
+                "params": {
+                    "protocolVersion": "2024-11-05",
+                    "capabilities": {},
+                    "clientInfo": {"name": "agent-api", "version": "1.0"}
+                }
+            }
+            init_res = await http_client.post(GATEWAY_URL, json=init_payload, headers=headers, timeout=10.0)
+            session_id = init_res.headers.get("mcp-session-id")
+            
+            if not session_id:
+                print(f"❌ No session ID received: {init_res.status_code} {init_res.text[:200]}")
+                return [], None
+
+            print(f"✅ Session established: {session_id[:30]}...")
+            headers["mcp-session-id"] = session_id
+
+            # 2. Tools/list
+            tools_payload = {"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}}
+            res = await http_client.post(GATEWAY_URL, json=tools_payload, headers=headers, timeout=10.0)
             raw = res.text
             if raw.startswith("data:"):
                 raw = raw[len("data:"):].strip()
@@ -107,24 +127,27 @@ async def fetch_mcp_tools(auth_token: str, username: str) -> list:
             tools  = result.get("result", {}).get("tools", [])
             print(f"📋 {len(tools)} tools fetched from gateway")
             
-            return [mcp_schema_to_gemini(t, username) for t in tools]
+            return [mcp_schema_to_gemini(t, username) for t in tools], session_id
+
         except Exception as e:
             print(f"❌ Tool fetch error: {e}")
-            return []
+            return [], None
 
-async def call_mcp_gateway(method_name: str, arguments: dict, auth_token: str) -> str:
+async def call_mcp_gateway(method_name: str, arguments: dict, auth_token: str, session_id: str) -> str:
+    headers = {
+        "Authorization": auth_token,
+        "Content-Type":  "application/json",
+        "Accept":        "application/json, text/event-stream",
+        "mcp-protocol-version": "2024-11-05",
+        "mcp-session-id": session_id, 
+    }
     payload = {
         "jsonrpc": "2.0",
         "id":      1,
         "method":  "tools/call",
         "params":  {"name": method_name, "arguments": arguments}
     }
-    headers = {
-        "Authorization": auth_token,
-        "Content-Type":  "application/json",
-        "Accept":        "application/json, text/event-stream",
-        "mcp-protocol-version": "2024-11-05",
-    }
+
     print(f"🔑 Token first 50 chars: {auth_token[:50]}")
     print(f"🔧 Call: {method_name} {arguments}")
 
@@ -159,13 +182,13 @@ async def chat_with_agent(request: ChatRequest, authorization: str = Header(None
         raise HTTPException(status_code=401, detail="Token missing!")
 
     username = decode_username(authorization)
-    tools_definition = await fetch_mcp_tools(authorization, username)
+    tools_definition, session_id = await fetch_mcp_tools(authorization, username)
     if not tools_definition:
         raise HTTPException(status_code=500, detail="Could not fetch tools from gateway.")
 
     try:
         chat = client.chats.create(
-            model="gemini-2.0-flash",
+            model="gemini-2.5-flash",
             config=types.GenerateContentConfig(
                 system_instruction=f"""You are an e-commerce assistant.
                 CURRENT USER: {username}
@@ -192,7 +215,7 @@ async def chat_with_agent(request: ChatRequest, authorization: str = Header(None
                 break
             
             call        = fc.function_call
-            tool_result = await call_mcp_gateway(call.name, dict(call.args), authorization)
+            tool_result = await call_mcp_gateway(call.name, dict(call.args), authorization, session_id)
             print(f"🔧 {call.name} → {tool_result[:80]}")
 
             response = chat.send_message(
