@@ -108,6 +108,7 @@ spec:
               key: GEMINI_API_KEY
         - name: GATEWAY_URL
           value: "http://agentgateway-proxy.agentgateway-system.svc.cluster.local:3000/mcp" 
+        ports:
         - containerPort: 8001
 ---
 apiVersion: v1
